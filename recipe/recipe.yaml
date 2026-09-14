@@ -19,6 +19,8 @@ source:
     # Without AVX2 the ray hit struct layouts diverge and no intersections are
     # ever reported (all ctest ray fire tests fail)
     - vec3da-alignment.patch
+    # immintrin.h / xmmintrin.h only exist on x86
+    - x86-only-intrinsics.patch
 
 build:
   number: 1

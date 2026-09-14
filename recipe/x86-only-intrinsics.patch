@@ -1,0 +1,90 @@
+From 45f7a385e07842e3c375eb1b019fbb6103fc03c3 Mon Sep 17 00:00:00 2001
+From: Matthew Feickert <matthew.feickert@cern.ch>
+Date: Mon, 14 Sep 2026 13:16:11 -0500
+Subject: [PATCH] BLD: Only include x86 intrinsics headers on x86 targets
+
+* immintrin.h and xmmintrin.h only exist for x86 / x86-64, so unconditionally
+  including them breaks the build on aarch64 / arm64. Guard the includes, the
+  SSE member of the Vec3fa union, and the _mm_prefetch based prefetch helpers
+  (which fall back to __builtin_prefetch) on x86 targets.
+* The Vec3fa __m128 union member is never used directly and the struct is
+  explicitly 16 byte aligned, so the layout is unchanged.
+---
+ include/double_down/Vec3da.h | 2 ++
+ include/double_down/Vec3fa.h | 9 ++++++++-
+ include/double_down/sys.h    | 7 +++++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/include/double_down/Vec3da.h b/include/double_down/Vec3da.h
+index 1148373..685f64a 100644
+--- a/include/double_down/Vec3da.h
++++ b/include/double_down/Vec3da.h
+@@ -5,8 +5,10 @@
+ #include <assert.h>
+ #include <iostream>
+ #include <math.h>
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+ #include <immintrin.h>
+ #include <xmmintrin.h>
++#endif
+ #include <limits>
+ 
+ #ifndef NDEBUG
+diff --git a/include/double_down/Vec3fa.h b/include/double_down/Vec3fa.h
+index ec4aee9..4292cef 100644
+--- a/include/double_down/Vec3fa.h
++++ b/include/double_down/Vec3fa.h
+@@ -9,14 +9,21 @@
+ #include "Vec3ba.h"
+ #include "Vec3da.h"
+ #include "sys.h"
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+ #include <immintrin.h>
++#endif
+ 
+ namespace double_down {
+ 
+ struct __aligned(16) Vec3fa {
+   typedef float Scalar;
+   enum { n = 3 };
+-  union{ __m128 v; struct {float x,y,z; int a;}; };
++  union{
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
++    __m128 v;
++#endif
++    struct {float x,y,z; int a;};
++  };
+ 
+   __forceinline Vec3fa () {}
+ 
+diff --git a/include/double_down/sys.h b/include/double_down/sys.h
+index 813260d..58e5ee3 100644
+--- a/include/double_down/sys.h
++++ b/include/double_down/sys.h
+@@ -2,7 +2,9 @@
+ #ifndef SYS_H
+ #define SYS_H
+ 
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+ #include <xmmintrin.h>
++#endif
+ 
+ namespace double_down {
+ 
+@@ -14,8 +16,13 @@ namespace double_down {
+ 
+ #define __aligned(...) __attribute__((aligned(__VA_ARGS__)))
+ 
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+ inline void prefetchL1 (const void* ptr) { _mm_prefetch((const char*)ptr, _MM_HINT_T0); }
+ inline void prefetchL2 (const void* ptr) { _mm_prefetch((const char*)ptr, _MM_HINT_T1); }
++#else
++inline void prefetchL1 (const void* ptr) { __builtin_prefetch(ptr, 0, 3); }
++inline void prefetchL2 (const void* ptr) { __builtin_prefetch(ptr, 0, 2); }
++#endif
+ 
+ } // end namespace double_down
+ 
+-- 
+2.55.0
+
