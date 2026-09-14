@@ -23,7 +23,7 @@ source:
     - x86-only-intrinsics.patch
 
 build:
-  number: 1
+  number: 2
   skip: win
   script:
     - cmake ${CMAKE_ARGS} -DCMAKE_INSTALL_PREFIX=$PREFIX -S source -B build
@@ -45,7 +45,15 @@ requirements:
     # and depend on eigen-abi-devel. MOAB is built against Eigen 3 and its
     # headers use Eigen 3 API, so pin to the same major version.
     - eigen-abi-devel 3.*
-    - moab
+    # double-down does not use MPI and the MOAB headers it includes
+    # (Core, Range, CartVect, GeomQueryTool, GeomTopoTool, ...) have no
+    # MOAB_HAVE_MPI conditionals, so a single build against the nompi MOAB
+    # variant is ABI compatible with every MOAB variant. Pin nompi in host so
+    # the build is deterministic and does not pick up MOAB's mpi run_exports,
+    # and leave the run dependency unconstrained so downstream MPI variants
+    # (e.g. dagmc mpi_*_doubledown) can install it alongside an MPI MOAB.
+    # c.f. https://github.com/pshriwise/double-down/issues/31
+    - moab [build=nompi_*]
     - embree
   run:
     - moab
