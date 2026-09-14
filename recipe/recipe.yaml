@@ -14,6 +14,11 @@ source:
   # c.f. https://github.com/pshriwise/double-down/pull/51
   patches:
     - cmake-policy-max.patch
+    # -march=native is not portable and -mavx2 does not exist on arm64
+    - remove-native-arch-flags.patch
+    # Without AVX2 the ray hit struct layouts diverge and no intersections are
+    # ever reported (all ctest ray fire tests fail)
+    - vec3da-alignment.patch
 
 build:
   number: 1
@@ -33,11 +38,14 @@ requirements:
     - cmake
     - make
   host:
-    - eigen
+    # The public headers include MOAB headers, which include Eigen, so follow
+    # case B of https://github.com/conda-forge/eigen-feedstock/blob/main/recipe/README.md
+    # and depend on eigen-abi-devel. MOAB is built against Eigen 3 and its
+    # headers use Eigen 3 API, so pin to the same major version.
+    - eigen-abi-devel 3.*
     - moab
     - embree
   run:
-    - eigen
     - moab
     - embree
   run_exports:
