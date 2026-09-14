@@ -1,0 +1,32 @@
+From 7d67f80ce0209fdd93ac2c9d5e40c7b659a88ae4 Mon Sep 17 00:00:00 2001
+From: Matthew Feickert <matthew.feickert@cern.ch>
+Date: Mon, 14 Sep 2026 12:55:22 -0500
+Subject: [PATCH] BLD: Remove hardcoded -march=native -mavx2 compiler flags
+
+* -march=native produces binaries tuned to the build machine, which is not
+  portable for redistributed packages, and -mavx2 is an x86-64 only flag that
+  fails to compile on aarch64 / arm64 targets. Let the build environment
+  supply the target architecture flags via CMAKE_CXX_FLAGS / CMAKE_C_FLAGS
+  instead.
+---
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4ba3b55..874d737 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,8 +22,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+ endif()
+ 
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -march=native -mavx2")
+-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -march=native -mavx2")
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+ 
+ # MOAB
+ find_package(MOAB REQUIRED HINTS ${MOAB_DIR})
+-- 
+2.55.0
+

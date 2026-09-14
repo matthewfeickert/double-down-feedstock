@@ -1,0 +1,37 @@
+From 5836033c4e464a0e32d6204fd1961fe96be24df2 Mon Sep 17 00:00:00 2001
+From: Matthew Feickert <matthew.feickert@cern.ch>
+Date: Mon, 14 Sep 2026 13:06:01 -0500
+Subject: [PATCH] FIX: Force 32 byte alignment of Vec3da independent of AVX2
+
+* MBDblTriIntersectFunc views the ray hit buffer passed by Embree as an
+  MBRayHit while the DblTriIntersectFunc it calls views the same buffer as an
+  RTCDRayHit. The two struct types only place their 'hit' member at the same
+  offset when Vec3da is 32 byte aligned: the extra MBRay members (orientation
+  and rh) then fit in the tail padding of RTCDRay. With AVX2 the __m256 union
+  member provides that alignment implicitly, but without AVX2 (e.g. on
+  aarch64 / arm64 or an x86-64 baseline build) Vec3da is only 8 byte aligned,
+  the hit offsets differ by 16 bytes, MBDblTriIntersectFunc never sees the
+  hit recorded by DblTriIntersectFunc and restores the original ray, so every
+  ray_fire reports no intersection.
+* Make the 32 byte alignment explicit so the layout is the same for all
+  targets. This is a no-op for AVX2 builds.
+---
+ include/double_down/Vec3da.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/double_down/Vec3da.h b/include/double_down/Vec3da.h
+index e264d74..1148373 100644
+--- a/include/double_down/Vec3da.h
++++ b/include/double_down/Vec3da.h
+@@ -19,7 +19,7 @@
+ 
+ namespace double_down {
+ 
+-struct Vec3da {
++struct alignas(32) Vec3da {
+   typedef double Scalar;
+   enum { n = 3 };
+   union{
+-- 
+2.55.0
+
